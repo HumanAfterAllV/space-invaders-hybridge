@@ -6,6 +6,4 @@
 from .entity import Entity
 from .player import Player
 from .bullet import Bullet
-
-# Cuando creemos más entidades:
-# from .enemy import Enemy
+from .enemy import Enemy

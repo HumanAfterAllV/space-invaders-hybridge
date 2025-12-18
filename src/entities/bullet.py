@@ -30,11 +30,26 @@ class Bullet(Entity):
         # Llamar al constructor de Entity
         super().__init__(x, y, BULLET_WIDTH, BULLET_HEIGHT)
         
-        # Determinar color según quién disparó
-        if is_player_bullet:
-            self.image.fill(BULLET_COLOR)  # Amarillo para jugador
-        else:
-            self.image.fill(ENEMY_BULLET_COLOR)  # Rojo para enemigos
+        # Cargar sprite de la bala desde imagen
+        try:
+            self.image = pygame.image.load('assets/images/bullet.png').convert_alpha()
+            # Escalar la imagen al tamaño configurado
+            self.image = pygame.transform.scale(self.image, (BULLET_WIDTH, BULLET_HEIGHT))
+            
+            # Si es bala de enemigo, cambiar color (tintear de rojo)
+            if not is_player_bullet:
+                # Crear una copia para aplicar tinte rojo
+                self.image = self.image.copy()
+                red_tint = pygame.Surface(self.image.get_size(), pygame.SRCALPHA)
+                red_tint.fill((255, 0, 0, 128))  # Rojo semi-transparente
+                self.image.blit(red_tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        except pygame.error as e:
+            print(f"⚠️ No se pudo cargar sprite de bala: {e}")
+            # Fallback: usar rectángulo de color
+            if is_player_bullet:
+                self.image.fill(BULLET_COLOR)  # Amarillo para jugador
+            else:
+                self.image.fill(ENEMY_BULLET_COLOR)  # Rojo para enemigos
         
         # Velocidad vertical
         # direction: 1 = hacia arriba, -1 = hacia abajo
