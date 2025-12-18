@@ -2,6 +2,8 @@ import pygame
 import sys
 
 from config import *
+from src.managers import GameManager
+from src.screens import LoadingScreen
 
 class Game:
     """
@@ -19,6 +21,7 @@ class Game:
 
         # Crear la ventana del juego con las dimensiones definidas en config.py
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        pygame.display.set_caption(WINDOW_TITLE)
 
         # Establecer el título de la ventana
         pygame.display.set_caption(WINDOW_TITLE)
@@ -29,6 +32,16 @@ class Game:
 
         # Variable que controla si el juego está corriendo
         self.running = True
+
+        # Inicializar el GameManager (singleton)
+        self.game_manager = GameManager(self)
+
+        self.game_manager.change_state(LoadingScreen(self)) 
+
+        # Tiempo transcurrido entre frames
+        self.delta_time = 0
+
+        self.clock = pygame.time.Clock()
     
     def handle_events(self):
         """
@@ -41,14 +54,17 @@ class Game:
         - etc.
         """
 
+        events = pygame.event.get()
+        
         # Iterar sobre todos los eventos en la cola de eventos
-        for event in pygame.event.get():
+        for event in events:
             if event.type == pygame.QUIT:
                 self.running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
-    
+
+        self.game_manager.handle_events(events)
     # TODO: Agregar más métodos para manejar lógica del juego.
     def update(self):
         """
@@ -59,6 +75,8 @@ class Game:
         - Lógica de colisiones
         - Estados del juego
         """
+
+        self.game_manager.update(self.delta_time)
         pass
 
     def draw(self):
@@ -83,11 +101,9 @@ class Game:
         """
         
         # Llenar la pantalla con el color de fondo (negro)
-        self.screen.fill(BLACK)
-
-        #TODO: Dibujar los sprites
-
+        self.game_manager.draw()
         pygame.display.flip()
+        #TODO: Dibujar los sprites
 
     def run(self):
         """
@@ -97,14 +113,10 @@ class Game:
         """
 
         while self.running:
-
+            self.delta_time = self.clock.tick(FPS) / 1000.0
             self.handle_events()
-
             self.update()
-
             self.draw()
-
-            self.clock.tick(FPS)
         
         self.cleanup()
 
@@ -126,5 +138,9 @@ class Game:
         
 
 if __name__ == "__main__":
+    print("=" * 60)
+    print("🌌 SPACE INVADERS - HYBRIDGE EDITION 🌌")
+    print("=" * 60)
+
     game = Game()
     game.run()
