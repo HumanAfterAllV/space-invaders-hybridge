@@ -123,10 +123,9 @@ class MenuScreen(GameState):
         
         if self.selected_option == 0:  # PLAY
             print("🎮 Iniciando juego...")
-            # TODO: Cambiar a GameScreen cuando lo creemos
-            # from src.screens.game_screen import GameScreen
-            # self.game.game_manager.change_state(GameScreen(self.game))
-            print("⚠️ GameScreen aún no implementado")
+            # Cambiar a GameScreen
+            from src.screens.game_screen import GameScreen
+            self.game.game_manager.change_state(GameScreen(self.game))
         
         elif self.selected_option == 1:  # EXIT
             print("👋 Saliendo del juego...")
