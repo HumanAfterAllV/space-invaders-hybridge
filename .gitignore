@@ -1,0 +1,33 @@
+# Python specific files and directories
+# Byte-code files
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+# Recommended to ignore the virtual environment directory
+venv/
+.venv/
+
+# IDE specific files (optional, depends on your IDE)
+.idea/          # For PyCharm/IntelliJ
+.vscode/        # For VS Code
+*.sublime-project
+*.sublime-workspace
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.tox/
+
+# OS and editor files
+.DS_Store       # macOS
+Thumbs.db       # Windows
+
+# Pygame/Game specific (optional, add as needed)
+# Ignore any saved game data, log files, or temporary output
+# e.g.,
+# save_data.json
+# debug.log
+# screenshots/
+# output/
