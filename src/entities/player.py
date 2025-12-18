@@ -29,8 +29,16 @@ class Player(Entity):
         # Llamar al constructor de Entity
         super().__init__(x, y, PLAYER_WIDTH, PLAYER_HEIGHT)
         
-        # Color de la nave del jugador (azul)
-        self.image.fill(BLUE)
+        # Cargar sprite del jugador desde imagen
+        try:
+            self.image = pygame.image.load('assets/images/player.png').convert_alpha()
+            # Escalar la imagen al tamaño configurado
+            self.image = pygame.transform.scale(self.image, (PLAYER_WIDTH, PLAYER_HEIGHT))
+            print("✅ Sprite del jugador cargado")
+        except pygame.error as e:
+            print(f"⚠️ No se pudo cargar sprite del jugador: {e}")
+            # Fallback: usar rectángulo azul
+            self.image.fill(BLUE)
         
         # Velocidad de movimiento (se usa cuando se presionan teclas)
         self.speed = PLAYER_SPEED
