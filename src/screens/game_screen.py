@@ -4,8 +4,10 @@
 # Este estado es donde ocurre el juego real
 
 import pygame
+import random
 from src.screens.game_state import GameState
 from src.entities import Player, Bullet
+from src.managers import SpawnManager, CollisionManager
 from config import *
 
 class GameScreen(GameState):
@@ -45,11 +47,20 @@ class GameScreen(GameState):
         # ========== ENTIDADES ==========
         self.player = None  # Se crea en enter()
         
+        # ========== MANAGERS ==========
+        self.spawn_manager = SpawnManager()
+        self.collision_manager = CollisionManager()
+        
         # ========== JUEGO STATE ==========
         self.score = 0
         self.level = 1
         self.game_over = False
         self.paused = False
+        self.victory = False  # Victoria al completar oleada
+        
+        # ========== DISPARO DE ENEMIGOS ==========
+        self.enemy_shoot_timer = 0
+        self.enemy_shoot_interval = 1.5  # Cada cuántos segundos disparan
         
         # ========== UI ==========
         self.font_hud = None
@@ -79,6 +90,11 @@ class GameScreen(GameState):
         self.score = 0
         self.game_over = False
         self.paused = False
+        self.victory = False
+        self.level = 1
+        
+        # Generar primera oleada de enemigos
+        self.spawn_manager.spawn_wave(self.level, self.enemies, self.all_sprites)
         
         print("✅ Jugador creado en posición inicial")
         print("🎮 Controles: A/D o ←/→ para mover, SPACE para disparar")
@@ -132,6 +148,36 @@ class GameScreen(GameState):
             print("🔫 ¡Bala disparada!")
             # TODO: Reproducir sonido de disparo
     
+    def enemy_shoot(self):
+        """
+        Un enemigo aleatorio dispara.
+        """
+        if len(self.enemies) == 0:
+            return
+        
+        # Elegir un enemigo aleatorio para disparar
+        shooting_enemy = random.choice(list(self.enemies))
+        
+        # El enemigo intenta disparar
+        bullet_pos = shooting_enemy.shoot()
+        
+        # Si puede disparar
+        if bullet_pos is not None:
+            # Crear bala enemiga
+            bullet = Bullet(
+                bullet_pos[0],  # x
+                bullet_pos[1],  # y
+                direction=-1,   # Hacia abajo
+                is_player_bullet=False
+            )
+            
+            # Agregar a los grupos
+            self.all_sprites.add(bullet)
+            self.bullets.add(bullet)
+            self.enemy_bullets.add(bullet)
+            
+            # TODO: Reproducir sonido de disparo enemigo
+    
     def toggle_pause(self):
         """
         Alterna entre pausa y juego activo.
@@ -142,13 +188,40 @@ class GameScreen(GameState):
         else:
             print("▶️ Juego reanudado")
     
+    def cleanup_dead_sprites(self):
+        """
+        Elimina INMEDIATAMENTE todos los sprites muertos de todos los grupos.
+        
+        Este método es crucial para evitar "enemigos fantasma" que siguen
+        apareciendo en pantalla después de ser destruidos.
+        """
+        # Limpiar enemigos muertos (prioridad #1)
+        for enemy in list(self.enemies):
+            if hasattr(enemy, 'alive') and not enemy.alive:
+                enemy.kill()  # Elimina del grupo enemies Y all_sprites
+        
+        # Limpiar balas muertas
+        for bullet in list(self.bullets):
+            if hasattr(bullet, 'alive') and not bullet.alive:
+                bullet.kill()
+        
+        # Limpiar cualquier otro sprite muerto
+        for sprite in list(self.all_sprites):
+            if hasattr(sprite, 'alive') and not sprite.alive:
+                sprite.kill()
+    
     def restart_game(self):
         """
         Reinicia el juego (vuelve a enter()).
         """
         print("🔄 Reiniciando juego...")
         
-        # Limpiar todos los sprites
+        # Destruir TODOS los sprites individualmente
+        # Esto asegura que se llame kill() en cada uno
+        for sprite in list(self.all_sprites):
+            sprite.kill()
+        
+        # Limpiar todos los grupos
         self.all_sprites.empty()
         self.players.empty()
         self.bullets.empty()
@@ -172,16 +245,54 @@ class GameScreen(GameState):
         
         # Actualizar todas las entidades
         # Cada sprite ejecuta su método update()
-        for sprite in self.all_sprites:
+        for sprite in list(self.all_sprites):  # list() crea copia para evitar modificar durante iteración
             sprite.update(delta_time)
         
-        # TODO: Detectar colisiones
-        # self.check_collisions()
+        # PRIMERA LIMPIEZA: Eliminar sprites destruidos durante update()
+        self.cleanup_dead_sprites()
+        
+        # Actualizar movimiento en formación de enemigos
+        invasion = self.spawn_manager.update_formation(self.enemies, delta_time)
+        if invasion:
+            print("🚨 ¡INVASIÓN! Game Over!")
+            self.game_over = True
+            self.player.lives = 0  # Forzar game over
+        
+        # Enemigos disparan aleatoriamente
+        self.enemy_shoot_timer -= delta_time
+        if self.enemy_shoot_timer <= 0 and len(self.enemies) > 0:
+            self.enemy_shoot()
+            self.enemy_shoot_timer = self.enemy_shoot_interval
+        
+        # Detectar todas las colisiones
+        collision_results = self.collision_manager.check_all_collisions(self)
+        
+        # Aplicar resultados de colisiones
+        self.score += collision_results['points_gained']
+        
+        # SEGUNDA LIMPIEZA: Eliminar enemigos muertos por colisiones
+        # Esto es CRÍTICO para evitar "enemigos fantasma"
+        self.cleanup_dead_sprites()
+        
+        if collision_results['invasion']:
+            print("🚨 ¡INVASIÓN! Game Over!")
+            self.game_over = True
+            self.player.lives = 0
         
         # Verificar si el jugador murió
         if self.player.lives <= 0:
             self.game_over = True
             print("☠️ GAME OVER!")
+        
+        # Verificar si se eliminaron todos los enemigos (victoria)
+        if self.spawn_manager.all_enemies_dead(self.enemies) and not self.game_over:
+            print("🎉 ¡Oleada completada!")
+            self.victory = True
+            self.level = self.spawn_manager.next_level()
+            # Generar nueva oleada después de 2 segundos
+            # Por ahora la generamos inmediatamente
+            self.spawn_manager.spawn_wave(self.level, self.enemies, self.all_sprites)
+            self.victory = False
     
     def draw(self):
         """
@@ -192,9 +303,16 @@ class GameScreen(GameState):
         
         # TODO: Dibujar fondo de estrellas
         
-        # Dibujar todas las entidades
+        # Dibujar todas las entidades VIVAS
+        # Filtrar solo los sprites que están vivos
         for sprite in self.all_sprites:
-            sprite.draw(self.screen)
+            # Verificar si el sprite sigue vivo antes de dibujarlo
+            if hasattr(sprite, 'alive'):
+                if sprite.alive:
+                    sprite.draw(self.screen)
+            else:
+                # Si no tiene atributo alive, dibujarlo (por compatibilidad)
+                sprite.draw(self.screen)
         
         # Dibujar HUD (puntuación, vidas)
         self.draw_hud()
@@ -283,8 +401,14 @@ class GameScreen(GameState):
         """
         print("🚪 Saliendo de Game Screen")
         
+        # Destruir todos los sprites individualmente
+        for sprite in list(self.all_sprites):
+            sprite.kill()
+        
         # Limpiar todos los sprites
         self.all_sprites.empty()
         self.players.empty()
         self.bullets.empty()
         self.enemies.empty()
+        self.player_bullets.empty()
+        self.enemy_bullets.empty()
