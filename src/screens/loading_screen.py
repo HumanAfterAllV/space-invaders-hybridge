@@ -91,8 +91,9 @@ class LoadingScreen(GameState):
                 print(f"Cargando recurso {self.loaded_resources}/{self.total_resources}...")
 
         elif self.progress >= 1.0:
-            # TODO: Cambiar al MenuScreen cuando termine la carga
-
+            # Cambio al menú principal cuando la carga termina
+            from src.screens.menu_screen import MenuScreen
+            self.game.game_manager.change_state(MenuScreen(self.game))
             print("Carga completa. Cambiando al MenuScreen...")
 
     def draw(self):
