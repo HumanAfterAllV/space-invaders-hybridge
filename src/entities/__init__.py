@@ -3,7 +3,9 @@
 # ==============================================================================
 # Este archivo permite importar las entidades del juego
 
-# Cuando creemos las entidades, las exportaremos aquí:
-# from .player import Player
+from .entity import Entity
+from .player import Player
+from .bullet import Bullet
+
+# Cuando creemos más entidades:
 # from .enemy import Enemy
-# from .bullet import Bullet
